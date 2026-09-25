@@ -1,0 +1,63 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crafting & Service Calculator</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1117;--panel:#151b23;--card:#1c2430;--border:#303b49;--text:#f3f5f7;--muted:#9da9b6;--accent:#8b5cf6}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#0b0e13,#121824);font-family:Arial;color:var(--text)}
+main{max-width:1150px;margin:auto;padding:28px 18px}.header h1{margin:0 0 7px}.header p{color:var(--muted)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.tab{background:var(--card)}.tab.active{background:var(--accent)}
+.section{display:none}.section.active{display:block}.grid{display:grid;grid-template-columns:1fr 1.35fr;gap:18px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:18px}
+.search,input,select{width:100%;padding:12px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--text);font-size:16px}
+.recipes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px;max-height:480px;overflow:auto}
+button{border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--text);padding:11px 15px;cursor:pointer;font-weight:600}.recipe{text-align:left}.recipe:hover{border-color:var(--accent)}.add{background:var(--accent)}
+.addrow{display:flex;gap:10px;align-items:end}.field{flex:1}.field label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+.queueitem{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}table{width:100%;border-collapse:collapse}th,td{padding:10px 7px;border-bottom:1px solid var(--border);text-align:left}th:last-child,td:last-child{text-align:right}
+.muted{color:var(--muted)}.service-list{line-height:1.8}.discount{display:flex;gap:9px;align-items:center;color:var(--muted);margin-bottom:15px}.discount input{width:auto}
+@media(max-width:760px){.grid{grid-template-columns:1fr}.recipes{grid-template-columns:1fr}.addrow{flex-wrap:wrap}}
+</style></head><body><main>
+<div class="header"><h1>🔧 Crafting & Service Calculator</h1><p>Crafting materials, combined builds, vehicle services and price list.</p></div>
+<div class="tabs"><button class="tab active" data-tab="crafting">Crafting Calculator</button><button class="tab" data-tab="services">Vehicle Services</button><button class="tab" data-tab="prices">Price List</button></div>
+
+<section id="crafting" class="section active"><div class="grid">
+<section class="panel"><h2>Recipes</h2><input id="search" class="search" placeholder="Search tyre, turbo, brakes..."><div id="recipes" class="recipes"></div></section>
+<section class="panel"><h2>Add items</h2><div class="addrow"><div class="field"><label>Recipe</label><input id="chosen" readonly placeholder="Select a recipe"></div><div class="field" style="max-width:120px"><label>Quantity</label><input id="quantity" type="number" min="1" value="1"></div><button id="add" class="add">Add</button></div>
+<h3>Items being calculated</h3><div id="queue" class="muted">Nothing added yet.</div><button id="clear">Clear all</button><h2 style="margin-top:22px">Combined materials</h2><div id="result" class="muted">Add items to see totals.</div></section></div></section>
+
+<section id="services" class="section"><div class="grid"><section class="panel"><h2>Vehicle Service</h2><label>Choose service</label><select id="serviceSelect"><option value="bike">Full Bike Service</option><option value="car">Full Car Service</option></select><div id="serviceResult" style="margin-top:15px"></div></section><section class="panel"><h2>Total raw materials</h2><div id="serviceMaterials"></div></section></div></section>
+
+<section id="prices" class="section"><section class="panel"><h2>New Price List</h2><label class="discount"><input id="damc" type="checkbox"> DAMC member — 50% off everything listed below except VIP Engine</label><table><thead><tr><th>Item / Service</th><th>Price</th><th>DAMC Price</th></tr></thead><tbody id="priceRows"></tbody></table></section></section>
+</main>
+<script>
+const R={
+"Lighting Controller":{Plastic:15,Copper:8,Glass:15,Aluminium:15},"Extras Kit":{Iron:15,Glass:10,Copper:15,Plastic:4},
+"Tyre Smoke":{"Aluminium Powder":8,Rubber:8,Aluminium:8},"Repair Kit":{Iron:7,Rubber:7,Steel:7},
+"EV Coolant":{"Aluminium Powder":20,"Iron Powder":20,Plastic:30},AWD:{"Metal Scrap":25,Rubber:35,Plastic:15,Iron:13,"Iron Powder":30,Steel:35},
+"Tyre Replacement":{Rubber:31,Steel:6},Respray:{"Iron Powder":7,"Aluminium Powder":8},"Spark Plug":{"Metal Scrap":7,Glass:33},
+"Engine Oil":{"Aluminium Powder":6,"Iron Powder":12,Plastic:15},Turbo:{Steel:88,"Aluminium Powder":77,Aluminium:66,Plastic:45},
+"Nitro Bottle":{"Metal Scrap":130,Steel:150,Plastic:80,Glass:130},"Brakepad Replacement":{Glass:5,Steel:2,Plastic:5},
+"Vehicle Wheels Set":{"Aluminium Powder":3,Rubber:4,Aluminium:5},"Nitro Install Kit":{"Metal Scrap":150,Copper:150,Steel:250,Glass:100},
+"Clutch Replacement":{Rubber:15,Glass:15,Iron:23,Copper:5,Steel:23},Bodykit:{Glass:5,Steel:2,Plastic:5},
+"Semi Slick":{Iron:50,Rubber:200,Steel:70},"Air Filter":{Glass:22,Plastic:18},"Performance Part":{"Metal Scrap":5,Plastic:5,Steel:5,Glass:2,Copper:2},
+"Stance Kit":{"Metal Scrap":35,Iron:15,"Iron Powder":15,Steel:35},Slick:{Iron:50,Rubber:200,Steel:70},
+"Suspension Parts":{Aluminium:24,"Aluminium Powder":33,"Iron Powder":15,Steel:43},"Ceramic Brakes":{Copper:80,"Aluminium Powder":28,Rubber:100,Aluminium:150}};
+const S={bike:[["Tyre Replacement",2],["Suspension Parts",1],["Engine Oil",1],["Clutch Replacement",1],["Air Filter",1],["Spark Plug",4],["Brakepad Replacement",4]],car:[["Brakepad Replacement",4],["Tyre Replacement",4],["Spark Plug",4],["Engine Oil",1],["Air Filter",1],["Clutch Replacement",1],["Suspension Parts",1]]};
+const P=[["Ceramic Brakes",25000,0],["Semi-Slicks / Slicks / Offroad",20000,0],["AWD / FWD / RWD",20000,0],["TurboCharger",20000,0],["Install Nitrous",35000,0],["Nitrous Bottle (per install)",15000,0],["Drift Kit Bottle (per bottle)",20000,0],["VIP Engine",300000,1]];
+let selected="",items=[];
+const $=x=>document.getElementById(x);
+function recipeList(){let q=$("search").value.toLowerCase();$("recipes").innerHTML=Object.keys(R).filter(x=>x.toLowerCase().includes(q)).map(x=>`<button class="recipe">${x}</button>`).join("");document.querySelectorAll(".recipe").forEach(b=>b.onclick=()=>{selected=b.textContent;$("chosen").value=selected})}
+function craft(){if(!items.length){$("queue").innerHTML='<span class="muted">Nothing added yet.</span>';$("result").innerHTML='<span class="muted">Add items to see totals.</span>';return}
+$("queue").innerHTML=items.map((x,i)=>`<div class="queueitem"><span><b>${x.n}</b> × ${x.q}</span><button data-i="${i}" class="remove">Remove</button></div>`).join("");
+document.querySelectorAll(".remove").forEach(b=>b.onclick=()=>{items.splice(+b.dataset.i,1);craft()});let t={};items.forEach(x=>Object.entries(R[x.n]).forEach(([m,v])=>t[m]=(t[m]||0)+v*x.q));
+$("result").innerHTML='<table><tr><th>Material</th><th>Total</th></tr>'+Object.entries(t).map(([m,v])=>`<tr><td>${m}</td><td><b>${v.toLocaleString()}</b></td></tr>`).join("")+'</table>'}
+$("add").onclick=()=>{if(!selected)return;let q=Math.max(1,Math.floor(+$("quantity").value||1)),e=items.find(x=>x.n===selected);e?e.q+=q:items.push({n:selected,q});craft()};
+$("clear").onclick=()=>{items=[];craft()};$("search").oninput=recipeList;recipeList();
+
+function service(){let d=S[$("serviceSelect").value];$("serviceResult").innerHTML='<ul class="service-list">'+d.map(x=>`<li>${x[1]} × ${x[0]}</li>`).join("")+'</ul>';let t={};d.forEach(x=>Object.entries(R[x[0]]).forEach(([m,v])=>t[m]=(t[m]||0)+v*x[1]));$("serviceMaterials").innerHTML='<table><tr><th>Material</th><th>Total</th></tr>'+Object.entries(t).map(([m,v])=>`<tr><td>${m}</td><td><b>${v.toLocaleString()}</b></td></tr>`).join("")+'</table>'}
+$("serviceSelect").onchange=service;service();
+
+function prices(){$("priceRows").innerHTML=P.map(x=>`<tr><td>${x[0]}${x[2]?' <span class="muted">(no DAMC discount)</span>':''}</td><td>$${x[1].toLocaleString()}</td><td>$${(x[2]?x[1]:x[1]/2).toLocaleString()}</td></tr>`).join("")}prices();
+prices();
+
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));b.classList.add("active");$(b.dataset.tab).classList.add("active")});
+</script></body></html>
